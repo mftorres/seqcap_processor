@@ -164,7 +164,7 @@ def find_longest_contig(contig_names,blast_df):
     #     longest_contig = contig_names[np.where(np.max(contig_lengths))[0][0]]        
     return longest_contig
 
-def find_bestbitscore_contig():
+def find_bestbitscore_contig(contig_names,blast_df):
     bitscore_list = []
     for contig in contig_names:
         match = blast_df[blast_df.sseqid.values.astype(str)==str(contig)]
@@ -186,7 +186,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
         # keep the potential paralogs
         keep_these_exons = possible_paralogous
         invalid_exons_unique = list(set(invalid_exons_unique)-set(keep_these_exons))
-        print('Warning: Found %i possibly paralogous loci. The longest and best matching contig for each paralogous locus will be kept (product of match identity and length of match), due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(possible_paralogous))
+        print('Warning: Found %i possibly paralogous loci. The longest and best matching contig for each paralogous locus will be kept (product of match identity and length of match), due to the use of the --keep_paralogs flag. If the --keep_bestbitscore flag is set, the contig with the highest blast bitscore is kept. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(possible_paralogous))
     print('Removing',len(invalid_exons_unique),'exon loci with potential issues.')
     # print the info to file
     # paralog info file
@@ -203,15 +203,14 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
     for exon in exon_contig_dict:
         if exon not in invalid_exons_unique:
             contig_names = exon_contig_dict[exon]
-            ######################################################################################################################################
-            ## insert here the filtering with a new function
-            ######################################################################################################################################
             if keep_bestbitscore_boolean:
                 contig_names = find_longest_contig(contig_names,blast_df)
                 valid_contig_names.append(str(contig_names).replace('>',''))
+                print('Keeping contig with highest blast bitscore')
             else:
                 contig_names = find_bestbitscore_contig(contig_names,blast_df)
                 valid_contig_names.append(str(contig_names).replace('>',''))
+                print('Keeping longest contig')
     return valid_contig_names
 
 
