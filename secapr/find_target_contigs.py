@@ -74,6 +74,12 @@ def add_arguments(parser):
         default=False,
         help="Keep contigs for loci that are flagged as potentially paralogous (multiple contigs matching same locus). The longest contig will be selected for these loci.",
     )
+    parser.add_argument(
+        "--keep_bestbitscore",
+        action='store_true',
+        default=False,
+        help="Keep contigs for loci that are flagged as potentially paralogous (multiple contigs matching same locus). The contig with the best bitscore will be selected for these loci.",
+    )
 
 
 
@@ -88,6 +94,7 @@ def new_get_probe_name(header, regex):
     return match.groups()[0]
 
 
+#### modify this to make it output a dictionary of exon and
 def contigs_matching_exons(blast_df):
     # make a dictionary with all contig names that match a exon locus
     exon_contig_dict = {}
@@ -143,7 +150,6 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
                 invalid_exon_loci.append(exon)
     return sorted(list(np.unique(np.array((invalid_exon_loci))))), exons_with_multiple_hits, contigs_matching_multiple_exons
 
-
 def find_longest_contig(contig_names,blast_df):
     length_list = []    
     for contig in contig_names:
@@ -158,8 +164,15 @@ def find_longest_contig(contig_names,blast_df):
     #     longest_contig = contig_names[np.where(np.max(contig_lengths))[0][0]]        
     return longest_contig
 
+def find_bestbitscore_contig():
+    bitscore_list = []
+    for contig in contig_names:
+        match = blast_df[blast_df.sseqid.values.astype(str)==str(contig)]
+        bitscore_list.append(match.bitscore.values[0])
+        bestbitscore_contig = np.array(contig_names)[np.array(bitscore_list)==np.max(bitscore_list)][0]
+        return bestbitscore_contig
 
-def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir,blast_df):
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,keep_bestbitscore_boolean,outdir,blast_df):
     # summarize all exons that should be excluded form further processing (duplicates)
     # remove all duplicates
     invalid_exons_unique = list(set(loci_with_issues))
@@ -190,8 +203,15 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
     for exon in exon_contig_dict:
         if exon not in invalid_exons_unique:
             contig_names = exon_contig_dict[exon]
-            contig_names = find_longest_contig(contig_names,blast_df)
-            valid_contig_names.append(str(contig_names).replace('>',''))
+            ######################################################################################################################################
+            ## insert here the filtering with a new function
+            ######################################################################################################################################
+            if keep_bestbitscore_boolean:
+                contig_names = find_longest_contig(contig_names,blast_df)
+                valid_contig_names.append(str(contig_names).replace('>',''))
+            else:
+                contig_names = find_bestbitscore_contig(contig_names,blast_df)
+                valid_contig_names.append(str(contig_names).replace('>',''))
     return valid_contig_names
 
 
@@ -374,9 +394,13 @@ def main(args):
         orientation_df.to_csv(os.path.join(subfolder,'contig_orientation.txt'),sep='\t',index=False)
         # mark duplicate loci
         loci_with_issues, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
+
         # remove duplicate loci from the list of targeted loci and contigs
-        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contig_multi_exon_dict,keep_duplicates,args.keep_paralogs,subfolder,selected_matches)
-        # write those contigs that match the reference library to the file
+        # add args.keep_bestbitscore
+        # the below returns valid_contig_names
+        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contig_multi_exon_dict,keep_duplicates,args.keep_paralogs,args.keep_bestbitscore,subfolder,selected_matches)
+
+        # write those contigs that match the reference library to the file. target_contigs=valid_contig_names from get_list_of_valid_exons_and_contigs
         sample_contig_file = extract_target_contigs(sample_id,reference_lib,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
         output_target_contig_files.append(sample_contig_file)
         # remove contig names duplicates from file (only keep longest)
@@ -391,7 +415,7 @@ def main(args):
         log.info("{}".format("-" * 65))
         # remove the blast database, because it can be a large file
         for db_file in glob.glob(reference_lib+'*'):
-	        os.remove(db_file)
+            os.remove(db_file)
 
     # summarize all extracted target contigs of all samples in one shared file
     global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
