@@ -212,7 +212,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
                 contig_names = find_longest_contig(contig_names,blast_df)
                 valid_contig_names.append(str(contig_names).replace('>',''))
                 print('Keeping longest contig')
-    if keep_bestbitscore_boolean print('Keeping contig with highest blast bitscore') else print('Keeping longest contig')
+    print('Keeping contig with highest blast bitscore') if keep_bestbitscore_boolean else print('Keeping longest contig')
     return valid_contig_names
 
 
