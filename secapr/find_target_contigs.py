@@ -48,13 +48,13 @@ def add_arguments(parser):
         '--target_length',
         default=50,
         type=int,
-        help="The required length of the matching sequence stretch between contigs and target sequences. This does not have to be a perfect match but can be adjusted with the --min_identity flag [default=50]."
+        help="The required length of the matching sequence stretch between contigs and target sequences. This does not have to be a perfect match but can be adjusted with the --min_identity flag (default=50)."
     )
     parser.add_argument(
         '--min_identity',
         default=90,
         type=int,
-        help="The minimum percent identity required for a match [default=90]."
+        help="The minimum percent identity required for a match (default=90)."
     )
     parser.add_argument(
         '--seed_length',
