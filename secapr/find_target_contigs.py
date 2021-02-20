@@ -63,6 +63,12 @@ def add_arguments(parser):
         help="Length of initial seed sequence for finding BLAST matches. The seed has to be a perfect match between a given contig and a reference locus (default=11)."
     )
     parser.add_argument(
+        '--blast_threads',
+        default=4,
+        type=int,
+        help="Number of threads to use for the BLAST search (default=4)."
+    )
+    parser.add_argument(
         "--remove_multilocus_contigs",
         action='store_true',
         default=False,
@@ -93,8 +99,6 @@ def new_get_probe_name(header, regex):
     #print match
     return match.groups()[0]
 
-
-#### modify this to make it output a dictionary of exon and
 def contigs_matching_exons(blast_df):
     # make a dictionary with all contig names that match a exon locus
     exon_contig_dict = {}
@@ -102,7 +106,7 @@ def contigs_matching_exons(blast_df):
     contig_orientation_dict = {}
     contig_multi_exon_dict = {}
     for row in blast_df.iterrows():
-        locus = str(row[1].qseqid)
+        locus = str(row[1].qseqid) # gets exon name (from the reference)
         locus_name = re.sub('\_p[0-9]* \|.*', '', locus)
         locus_name = re.sub('^>', '', locus_name)
         contig_header = str(row[1].sseqid)
@@ -119,6 +123,7 @@ def contigs_matching_exons(blast_df):
         contig_orientation_dict.setdefault(contig_name,orientation)
     
     # remove double listings of loci/contigs
+    # contig_multi_exon_dict is the dict with the contigs that span multiple loci (from the reference)
     for i in exon_contig_dict.keys():
         exon_contig_dict[i] = list(set(exon_contig_dict[i]))
     for i in contig_exon_dict.keys():
@@ -132,11 +137,14 @@ def contigs_matching_exons(blast_df):
             contig_multi_exon_dict.setdefault(contig,contig_exon_dict[contig])
     return exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict, orientation_df
 
-
+# exon_contig_dict --> dictionary locus (ref) to contig (assembly)
+# contig_exon_dict --> dictionary contig (assembly) to locus (ref)
 def find_duplicates(exon_contig_dict,contig_exon_dict):
     # get exons that have multiple contigs matching them = paralogs
     invalid_exon_loci = []
     exons_with_multiple_hits = []
+    # locus with multiple contigs
+    # could be the ends of partially overlaping long contigs.
     for exon in list(exon_contig_dict.keys()):
         if len(exon_contig_dict[exon]) > 1:
             exons_with_multiple_hits.append(exon)
@@ -357,6 +365,7 @@ def main(args):
             run_makeblastdb.communicate()
         print('Done.')
         # run blast
+        # -num_threads for threading control
         blast_cmd = [
             'blastn',
             '-db',
@@ -372,7 +381,9 @@ def main(args):
             '-strand',
             'both',
             '-outfmt',
-            '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sstrand'
+            '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sstrand',
+            '-num_threads',
+            str(args.blast_threads)
         ]
         blast_out = os.path.join(subfolder,'%s_all_blast_hits.txt'%sample_id)
         blast_err = os.path.join(subfolder,'%s_blast_screen.txt'%sample_id)
