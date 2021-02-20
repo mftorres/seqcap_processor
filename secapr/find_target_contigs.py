@@ -177,8 +177,8 @@ def find_bestbitscore_contig(contig_names,blast_df):
     for contig in contig_names:
         match = blast_df[blast_df.sseqid.values.astype(str)==str(contig)]
         bitscore_list.append(match.bitscore.values[0])
-        bestbitscore_contig = np.array(contig_names)[np.array(bitscore_list)==np.max(bitscore_list)][0]
-        return bestbitscore_contig
+    bestbitscore_contig = np.array(contig_names)[np.array(bitscore_list)==np.max(bitscore_list)][0]
+    return bestbitscore_contig
 
 def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,keep_bestbitscore_boolean,outdir,blast_df):
     # summarize all exons that should be excluded form further processing (duplicates)
